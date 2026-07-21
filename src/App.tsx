@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
+import { CalibrationScreen } from './calibration/CalibrationScreen';
 import { usePoseDetection } from './pose/usePoseDetection';
 import { useGameStore } from './state/gameStore';
 
@@ -7,6 +8,7 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   usePoseDetection(videoRef);
+  const phase = useGameStore((s) => s.phase);
   const gesture = useGameStore((s) => s.gesture);
 
   // Draw the hip midpoint waypoint on the canvas overlay
@@ -91,23 +93,30 @@ function App() {
           className="absolute inset-0 w-full h-full pointer-events-none"
         />
 
-        {/* Lane indicator badge */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur px-4 py-1.5 rounded-full">
-          <span className={`font-semibold text-sm uppercase tracking-wide ${laneColor}`}>
-            {gesture.lane}
-          </span>
-        </div>
+        {/* Calibration overlay */}
+        {phase === 'calibrating' && <CalibrationScreen />}
+
+        {/* Lane indicator badge (only when playing) */}
+        {phase === 'playing' && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur px-4 py-1.5 rounded-full">
+            <span className={`font-semibold text-sm uppercase tracking-wide ${laneColor}`}>
+              {gesture.lane}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Status panel */}
-      <div className="mt-4 flex gap-6 text-sm font-mono text-gray-300">
-        <StatusPill label="Jump" active={gesture.jump} />
-        <StatusPill label="Duck" active={gesture.duck} />
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500">Hip</span>
-          <span>{gesture.hipX.toFixed(2)}, {gesture.hipY.toFixed(2)}</span>
+      {/* Status panel (only when playing) */}
+      {phase === 'playing' && (
+        <div className="mt-4 flex gap-6 text-sm font-mono text-gray-300">
+          <StatusPill label="Jump" active={gesture.jump} />
+          <StatusPill label="Duck" active={gesture.duck} />
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500">Hip</span>
+            <span>{gesture.hipX.toFixed(2)}, {gesture.hipY.toFixed(2)}</span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
