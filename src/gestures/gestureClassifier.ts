@@ -12,7 +12,7 @@ function extractCoord(land1: number, land2: number, landmarks: NormalizedLandmar
 
 export function classifyGesture(landmarks: NormalizedLandmark[]) {
 
-  const shoulders = extractCoord(11, 12, landmarks); 
+  //const shoulders = extractCoord(11, 12, landmarks); 
   const hips = extractCoord(23, 24, landmarks)
 
   let lane = 'center'; 
@@ -24,10 +24,10 @@ export function classifyGesture(landmarks: NormalizedLandmark[]) {
   }
 
   return {
-    jump: hips.y < 0.6, // placeholder threshold, tune once you see real numbers
+    jump: hips.y < 0.6, 
     duck: hips.y > 1.0,
-    shouldY: hips.y,
-    shouldX: hips.x,
+    hipY: hips.y,
+    hipX: hips.x,
     lane: lane, 
     ts: Date.now(),
   };
