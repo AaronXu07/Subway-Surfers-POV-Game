@@ -3,7 +3,7 @@ import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
 import { useGameStore } from '../state/gameStore';
 import { classifyGesture } from '../gestures/gestureClassifier';
 
-export function usePoseDetection(videoRef: React.RefObject<HTMLVideoElement>) {
+export function usePoseDetection(videoRef: React.RefObject<HTMLVideoElement | null>) {
   const landmarkerRef = useRef<PoseLandmarker | null>(null);
 
   useEffect(() => {

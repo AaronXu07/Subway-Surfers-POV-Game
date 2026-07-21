@@ -1,26 +1,19 @@
 import { create } from 'zustand';
+import type { GestureResult } from '../gestures/gestureClassifier';
 
 interface GameState {
-  gesture: { 
-    jump: boolean; 
-    duck: boolean; 
-    hipY: number; 
-    hipX: number; 
-    lane: string; 
-    ts: number 
-  };
-
-  setGesture: (g: GameState['gesture']) => void;
+  gesture: GestureResult;
+  setGesture: (g: GestureResult) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
-  gesture: { 
-    jump: false, 
-    duck: false, 
-    hipY: 0, 
-    hipX: 0,
-    lane: 'middle',  
-    ts: 0 
+  gesture: {
+    jump: false,
+    duck: false,
+    hipX: 0.5,
+    hipY: 0.5,
+    lane: 'center',
+    ts: 0,
   },
   setGesture: (g) => set({ gesture: g }),
 }));
