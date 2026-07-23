@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
+import type { GestureResult } from '../gestures/gestureClassifier';
 
 export type GamePhase = 'calibrating' | 'playing' | 'paused' | 'gameOver';
 
@@ -16,33 +17,26 @@ interface GameState {
   phase: GamePhase;
   calibration: CalibrationProfile | null;
   poseLandmarks: NormalizedLandmark[] | null;
-  gesture: { 
-    jump: boolean; 
-    duck: boolean; 
-    hipY: number; 
-    hipX: number; 
-    lane: string; 
-    ts: number 
-  };
+  gesture: GestureResult;
 
   setPhase: (phase: GamePhase) => void;
   setCalibration: (calibration: CalibrationProfile) => void;
   clearCalibration: () => void;
   setPoseLandmarks: (landmarks: NormalizedLandmark[] | null) => void;
-  setGesture: (g: GameState['gesture']) => void;
+  setGesture: (g: GestureResult) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
   phase: 'calibrating',
   calibration: null,
   poseLandmarks: null,
-  gesture: { 
-    jump: false, 
-    duck: false, 
-    hipY: 0, 
-    hipX: 0,
-    lane: 'middle',  
-    ts: 0 
+  gesture: {
+    jump: false,
+    duck: false,
+    hipX: 0.5,
+    hipY: 0.5,
+    lane: 'center',
+    ts: 0,
   },
   setPhase: (phase) => set({ phase }),
   setCalibration: (calibration) => set({ calibration }),
