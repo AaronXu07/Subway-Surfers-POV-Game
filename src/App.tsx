@@ -11,6 +11,7 @@ function App() {
   usePoseDetection(videoRef);
   const phase = useGameStore((state) => state.phase);
   const gesture = useGameStore((state) => state.gesture);
+  const depthStatus = useGameStore((state) => state.depthStatus);
   const isPlaying = phase === 'playing';
 
   useEffect(() => {
@@ -73,6 +74,7 @@ function App() {
             <div className="absolute bottom-2 right-2 flex gap-2">
               <GestureIndicator active={gesture.jump} label="Jump" />
               <GestureIndicator active={gesture.duck} label="Duck" />
+              <DepthIndicator status={depthStatus} />
             </div>
           </>
         )}
@@ -88,6 +90,25 @@ function GestureIndicator({ active, label }: { active: boolean; label: string })
         active
           ? 'border-green-300 bg-green-500/90 text-white'
           : 'border-gray-500 bg-black/70 text-gray-400'
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function DepthIndicator({ status }: { status: 'unknown' | 'valid' | 'tooFar' | 'tooClose' }) {
+  const label = status === 'tooFar' ? 'Step closer' : status === 'tooClose' ? 'Step back' : status === 'valid' ? 'Depth OK' : 'Depth ...';
+  const active = status === 'valid';
+
+  return (
+    <span
+      className={`rounded-full border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
+        active
+          ? 'border-green-300 bg-green-500/90 text-white'
+          : status === 'unknown'
+            ? 'border-gray-500 bg-black/70 text-gray-400'
+            : 'border-red-300 bg-red-500/90 text-white'
       }`}
     >
       {label}

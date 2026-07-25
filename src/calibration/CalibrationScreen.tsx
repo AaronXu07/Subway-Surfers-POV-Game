@@ -6,6 +6,7 @@ import {
   evaluateCalibrationPose,
   type CalibrationBoundsConfig,
 } from './calibrationBounds';
+import { shoulderSpan } from '../gestures/depthGuard';
 
 interface CalibrationScreenProps {
   config?: CalibrationBoundsConfig;
@@ -55,8 +56,9 @@ export function CalibrationScreen({ config = DEFAULT_CALIBRATION_CONFIG }: Calib
         const currentLandmarks = useGameStore.getState().poseLandmarks;
         const leftHip = currentLandmarks?.[23];
         const rightHip = currentLandmarks?.[24];
+        const neutralShoulderSpan = currentLandmarks && shoulderSpan(currentLandmarks);
 
-        if (leftHip && rightHip) {
+        if (leftHip && rightHip && neutralShoulderSpan) {
           const centerHipX = (leftHip.x + rightHip.x) / 2;
           const standingHipY = (leftHip.y + rightHip.y) / 2;
           setCalibration({
@@ -64,8 +66,9 @@ export function CalibrationScreen({ config = DEFAULT_CALIBRATION_CONFIG }: Calib
             standingHipY,
             leftThreshold: centerHipX + 0.16,
             rightThreshold: centerHipX - 0.16,
-            jumpThreshold: standingHipY - 0.08,
-            duckThreshold: standingHipY + 0.08,
+            jumpThreshold: standingHipY - 0.20,
+            duckThreshold: standingHipY + 0.20,
+            neutralShoulderSpan,
           });
         }
 

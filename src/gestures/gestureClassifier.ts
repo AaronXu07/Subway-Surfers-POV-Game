@@ -38,8 +38,8 @@ export function classifyGesture(
   }
 
   return {
-    jump: hips.y < (thresholds?.jumpThreshold ?? 0.6),
-    duck: hips.y > (thresholds?.duckThreshold ?? 0.8),
+    jump: hips.y < (thresholds?.jumpThreshold),
+    duck: hips.y > (thresholds?.duckThreshold),
     hipX: hips.x,
     hipY: hips.y,
     lane,
