@@ -56,9 +56,9 @@ export function usePoseDetection(videoRef: React.RefObject<HTMLVideoElement | nu
           const result = landmarker.detectForVideo(video, performance.now());
           if (result.landmarks[0]) {
             const landmarks = result.landmarks[0];
-            const { setGesture, setPoseLandmarks } = useGameStore.getState();
-            setPoseLandmarks(landmarks);
-            setGesture(classifyGesture(landmarks));
+            const state = useGameStore.getState();
+            state.setPoseLandmarks(landmarks);
+            state.setGesture(classifyGesture(landmarks, state.calibration ?? undefined));
           }
         } catch (error) {
           console.error('Pose detection failed:', error);

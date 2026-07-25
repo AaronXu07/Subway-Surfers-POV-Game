@@ -22,6 +22,7 @@ const LANDMARK_LINES = [
 
 export function CalibrationScreen({ config = DEFAULT_CALIBRATION_CONFIG }: CalibrationScreenProps) {
   const landmarks = useGameStore(state => state.poseLandmarks);
+  const setCalibration = useGameStore(state => state.setCalibration);
   const setPhase = useGameStore(state => state.setPhase);
   const holdStartedAtRef = useRef<number | null>(null);
   const [holdTimer, setHoldTimer] = useState<{ startedAt: number | null; now: number }>(() => ({
@@ -51,6 +52,23 @@ export function CalibrationScreen({ config = DEFAULT_CALIBRATION_CONFIG }: Calib
       setHoldTimer({ startedAt: holdStartedAtRef.current, now });
 
       if (holdStartedAtRef.current && now - holdStartedAtRef.current >= config.requiredHoldMs) {
+        const currentLandmarks = useGameStore.getState().poseLandmarks;
+        const leftHip = currentLandmarks?.[23];
+        const rightHip = currentLandmarks?.[24];
+
+        if (leftHip && rightHip) {
+          const centerHipX = (leftHip.x + rightHip.x) / 2;
+          const standingHipY = (leftHip.y + rightHip.y) / 2;
+          setCalibration({
+            centerHipX,
+            standingHipY,
+            leftThreshold: centerHipX + 0.16,
+            rightThreshold: centerHipX - 0.16,
+            jumpThreshold: standingHipY - 0.08,
+            duckThreshold: standingHipY + 0.08,
+          });
+        }
+
         setPhase('playing');
         return;
       }
@@ -60,7 +78,7 @@ export function CalibrationScreen({ config = DEFAULT_CALIBRATION_CONFIG }: Calib
 
     rafId = requestAnimationFrame(updateTimer);
     return () => cancelAnimationFrame(rafId);
-  }, [config.requiredHoldMs, evaluation.isInside, setPhase]);
+  }, [config.requiredHoldMs, evaluation.isInside, setCalibration, setPhase]);
 
   const heldMs = evaluation.isInside && holdTimer.startedAt
     ? holdTimer.now - holdTimer.startedAt

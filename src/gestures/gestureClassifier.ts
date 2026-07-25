@@ -19,7 +19,15 @@ export interface GestureResult {
   ts: number;
 }
 
-export function classifyGesture(landmarks: NormalizedLandmark[]): GestureResult {
+interface VerticalThresholds {
+  jumpThreshold: number;
+  duckThreshold: number;
+}
+
+export function classifyGesture(
+  landmarks: NormalizedLandmark[],
+  thresholds?: VerticalThresholds,
+): GestureResult {
   const hips = midpoint(23, 24, landmarks);
 
   let lane: GestureResult['lane'] = 'center';
@@ -30,8 +38,8 @@ export function classifyGesture(landmarks: NormalizedLandmark[]): GestureResult 
   }
 
   return {
-    jump: hips.y < 0.6,
-    duck: hips.y > 1.0,
+    jump: hips.y < (thresholds?.jumpThreshold ?? 0.6),
+    duck: hips.y > (thresholds?.duckThreshold ?? 0.8),
     hipX: hips.x,
     hipY: hips.y,
     lane,
