@@ -1,118 +1,195 @@
-import { useEffect, useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { CalibrationScreen } from './calibration/CalibrationScreen';
 import { GameCanvas } from './game/GameCanvas';
 import { usePoseDetection } from './pose/usePoseDetection';
 import { useGameStore } from './state/gameStore';
+import type { DepthStatus } from './gestures/depthGuard';
+import { ThresholdZones } from './ui/ThresholdZones';
+import { HipMarker } from './ui/HipMarker';
+
+/** Space reserved above/below the camera stage for the header and status bar. */
+const CHROME_HEIGHT = '10rem';
 
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const overlayRef = useRef<HTMLCanvasElement>(null);
+  const [aspectRatio, setAspectRatio] = useState(4 / 3);
 
   usePoseDetection(videoRef);
-  const phase = useGameStore((state) => state.phase);
-  const gesture = useGameStore((state) => state.gesture);
-  const depthStatus = useGameStore((state) => state.depthStatus);
+  const phase = useGameStore((s) => s.phase);
+  const gesture = useGameStore((s) => s.gesture);
+  const depthStatus = useGameStore((s) => s.depthStatus);
+  const hasPose = useGameStore((s) => s.poseLandmarks !== null);
   const isPlaying = phase === 'playing';
 
+  // Match the stage to the camera's real aspect ratio: it stops the feed from being
+  // stretched, and it makes normalized landmark coords line up 1:1 with the overlay.
   useEffect(() => {
-    const canvas = overlayRef.current;
     const video = videoRef.current;
-    if (!canvas || !video) return;
+    if (!video) return;
 
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    function syncAspectRatio() {
+      if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+        setAspectRatio(video.videoWidth / video.videoHeight);
+      }
+    }
 
-    const context = canvas.getContext('2d');
-    if (!context) return;
-
-    const x = (1 - gesture.hipX) * canvas.width;
-    const y = gesture.hipY * canvas.height;
-
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.beginPath();
-    context.arc(x, y, 9, 0, Math.PI * 2);
-    context.fillStyle = '#3b82f6';
-    context.fill();
-    context.strokeStyle = '#ffffff';
-    context.lineWidth = 2;
-    context.stroke();
-  }, [gesture.hipX, gesture.hipY]);
+    syncAspectRatio();
+    video.addEventListener('loadedmetadata', syncAspectRatio);
+    video.addEventListener('resize', syncAspectRatio);
+    return () => {
+      video.removeEventListener('loadedmetadata', syncAspectRatio);
+      video.removeEventListener('resize', syncAspectRatio);
+    };
+  }, []);
 
   return (
-    <main className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-gray-900">
-      {isPlaying && (
-        <div className="absolute inset-0">
-          <GameCanvas />
+    <div className="flex h-dvh w-screen flex-col items-center gap-3 overflow-hidden bg-zinc-950 p-4 text-zinc-100">
+      <header className="flex w-full max-w-6xl shrink-0 items-center justify-between px-1">
+        <h1 className="text-sm font-semibold tracking-tight text-zinc-200">POV Runner</h1>
+        <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em]">
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              hasPose ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]' : 'bg-zinc-600'
+            }`}
+          />
+          <span className="text-zinc-400">{hasPose ? phase : 'waiting for camera'}</span>
         </div>
-      )}
+      </header>
 
-      <div
-        className={
-          isPlaying
-            ? 'absolute right-4 top-4 z-10 aspect-video w-72 overflow-hidden rounded-lg border border-gray-600 bg-black shadow-2xl'
-            : 'relative aspect-video w-full max-w-6xl overflow-hidden rounded-xl border border-gray-700 shadow-2xl'
-        }
-      >
-        <video
-          ref={videoRef}
-          className="h-full w-full -scale-x-100 object-cover"
-          muted
-          playsInline
-        />
-        <canvas
-          ref={overlayRef}
-          className="pointer-events-none absolute inset-0 h-full w-full"
-        />
-
-        {phase === 'calibrating' && <CalibrationScreen />}
-
-        {isPlaying && (
-          <>
-            <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-              {gesture.lane}
+      <div className="flex min-h-0 w-full max-w-6xl flex-1 items-center justify-center">
+        <div
+          className="relative overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shadow-black/60"
+          style={{
+            aspectRatio: `${aspectRatio}`,
+            width: `min(100%, calc((100dvh - ${CHROME_HEIGHT}) * ${aspectRatio}))`,
+          }}
+        >
+          {/* While playing the stage belongs to the game; the feed shrinks to a corner
+              panel that keeps the tracking overlays readable. */}
+          {isPlaying && (
+            <div className="absolute inset-0">
+              <GameCanvas />
             </div>
-            <div className="absolute bottom-2 right-2 flex gap-2">
-              <GestureIndicator active={gesture.jump} label="Jump" />
-              <GestureIndicator active={gesture.duck} label="Duck" />
-              <DepthIndicator status={depthStatus} />
+          )}
+
+          <div
+            className={
+              isPlaying
+                ? 'absolute right-3 top-3 z-10 w-[28%] overflow-hidden rounded-xl border border-white/15 bg-black shadow-lg shadow-black/60'
+                : 'absolute inset-0'
+            }
+            style={isPlaying ? { aspectRatio: `${aspectRatio}` } : undefined}
+          >
+            <video
+              ref={videoRef}
+              className="h-full w-full -scale-x-100 object-cover"
+              muted
+              playsInline
+            />
+
+            {phase !== 'calibrating' && <ThresholdZones />}
+            <HipMarker />
+
+            {phase === 'calibrating' && <CalibrationScreen />}
+          </div>
+
+          {isPlaying && (
+            <div className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full border border-white/10 bg-black/50 px-4 py-1.5 backdrop-blur">
+              <span className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-100">
+                {gesture.lane}
+              </span>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
-    </main>
+
+      <footer className="flex w-full max-w-6xl shrink-0 items-center justify-center gap-3 px-1">
+        <StatusPill label="Jump" active={gesture.jump} />
+        <StatusPill label="Duck" active={gesture.duck} />
+        <DepthPill status={depthStatus} />
+        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5">
+          <span className="text-sm font-semibold uppercase tracking-[0.15em] text-zinc-500">
+            Hip
+          </span>
+          <span className="font-mono text-base tabular-nums text-zinc-200">
+            x {gesture.hipX.toFixed(2)}
+          </span>
+          <span className="font-mono text-base tabular-nums text-zinc-200">
+            y {gesture.hipY.toFixed(2)}
+          </span>
+        </div>
+      </footer>
+    </div>
   );
 }
 
-function GestureIndicator({ active, label }: { active: boolean; label: string }) {
+function StatusPill({ label, active }: { label: string; active: boolean }) {
   return (
-    <span
-      className={`rounded-full border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
+    <div
+      className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 transition-colors duration-150 ${
         active
-          ? 'border-green-300 bg-green-500/90 text-white'
-          : 'border-gray-500 bg-black/70 text-gray-400'
+          ? 'border-emerald-400/60 bg-emerald-400/15'
+          : 'border-white/10 bg-zinc-900'
       }`}
     >
-      {label}
-    </span>
+      <div
+        className={`h-2.5 w-2.5 rounded-full transition-colors duration-150 ${
+          active ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-zinc-700'
+        }`}
+      />
+      <span
+        className={`text-sm font-semibold uppercase tracking-[0.15em] transition-colors duration-150 ${
+          active ? 'text-emerald-200' : 'text-zinc-400'
+        }`}
+      >
+        {label}
+      </span>
+    </div>
   );
 }
 
-function DepthIndicator({ status }: { status: 'unknown' | 'valid' | 'tooFar' | 'tooClose' }) {
-  const label = status === 'tooFar' ? 'Step closer' : status === 'tooClose' ? 'Step back' : status === 'valid' ? 'Depth OK' : 'Depth ...';
-  const active = status === 'valid';
+const DEPTH_LABELS: Record<DepthStatus, string> = {
+  unknown: 'Depth —',
+  valid: 'Depth OK',
+  tooFar: 'Step closer',
+  tooClose: 'Step back',
+};
+
+/**
+ * Out-of-range depth suppresses gestures, so it gets a pill that reads as a warning
+ * rather than the plain on/off styling the gesture pills use.
+ */
+function DepthPill({ status }: { status: DepthStatus }) {
+  const isWarning = status === 'tooFar' || status === 'tooClose';
+  const isValid = status === 'valid';
 
   return (
-    <span
-      className={`rounded-full border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
-        active
-          ? 'border-green-300 bg-green-500/90 text-white'
-          : status === 'unknown'
-            ? 'border-gray-500 bg-black/70 text-gray-400'
-            : 'border-red-300 bg-red-500/90 text-white'
+    <div
+      className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 transition-colors duration-150 ${
+        isValid
+          ? 'border-emerald-400/60 bg-emerald-400/15'
+          : isWarning
+            ? 'border-amber-400/60 bg-amber-400/15'
+            : 'border-white/10 bg-zinc-900'
       }`}
     >
-      {label}
-    </span>
+      <div
+        className={`h-2.5 w-2.5 rounded-full transition-colors duration-150 ${
+          isValid
+            ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+            : isWarning
+              ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]'
+              : 'bg-zinc-700'
+        }`}
+      />
+      <span
+        className={`text-sm font-semibold uppercase tracking-[0.15em] transition-colors duration-150 ${
+          isValid ? 'text-emerald-200' : isWarning ? 'text-amber-200' : 'text-zinc-400'
+        }`}
+      >
+        {DEPTH_LABELS[status]}
+      </span>
+    </div>
   );
 }
 
