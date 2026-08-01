@@ -1,4 +1,5 @@
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
+import { GESTURE_THRESHOLDS } from './gestureThresholds';
 
 /** Returns the midpoint between two landmarks (normalized 0-1). */
 function midpoint(land1: number, land2: number, landmarks: NormalizedLandmark[]) {
@@ -23,15 +24,15 @@ export function classifyGesture(landmarks: NormalizedLandmark[]): GestureResult 
   const hips = midpoint(23, 24, landmarks);
 
   let lane: GestureResult['lane'] = 'center';
-  if (hips.x > 0.66) {
+  if (hips.x > GESTURE_THRESHOLDS.laneLeftX) {
     lane = 'left';
-  } else if (hips.x < 0.33) {
+  } else if (hips.x < GESTURE_THRESHOLDS.laneRightX) {
     lane = 'right';
   }
 
   return {
-    jump: hips.y < 0.6,
-    duck: hips.y > 1.0,
+    jump: hips.y < GESTURE_THRESHOLDS.jumpY,
+    duck: hips.y > GESTURE_THRESHOLDS.duckY,
     hipX: hips.x,
     hipY: hips.y,
     lane,
