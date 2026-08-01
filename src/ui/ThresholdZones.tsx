@@ -1,5 +1,5 @@
 import { useGameStore } from '../state/gameStore';
-import { GESTURE_THRESHOLDS, toScreenX } from '../gestures/gestureThresholds';
+import { resolveThresholds, toScreenX } from '../gestures/gestureThresholds';
 
 const pct = (value: number) => `${value * 100}%`;
 
@@ -15,12 +15,15 @@ export function ThresholdZones() {
   const lane = useGameStore(state => state.gesture.lane);
   const jump = useGameStore(state => state.gesture.jump);
   const duck = useGameStore(state => state.gesture.duck);
+  const calibration = useGameStore(state => state.calibration);
+
+  const thresholds = resolveThresholds(calibration);
 
   // Mirrored: the player's left is the left edge of the mirrored image.
-  const leftEdge = toScreenX(GESTURE_THRESHOLDS.laneLeftX);
-  const rightEdge = toScreenX(GESTURE_THRESHOLDS.laneRightX);
-  const jumpY = clampToFrame(GESTURE_THRESHOLDS.jumpY);
-  const duckY = clampToFrame(GESTURE_THRESHOLDS.duckY);
+  const leftEdge = toScreenX(thresholds.laneLeftX);
+  const rightEdge = toScreenX(thresholds.laneRightX);
+  const jumpY = clampToFrame(thresholds.jumpY);
+  const duckY = clampToFrame(thresholds.duckY);
 
   const lanes = [
     { key: 'left' as const, from: 0, to: leftEdge },

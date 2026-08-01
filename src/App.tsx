@@ -1,7 +1,9 @@
 import { useRef, useEffect, useState } from 'react';
 import { CalibrationScreen } from './calibration/CalibrationScreen';
+import { GameCanvas } from './game/GameCanvas';
 import { usePoseDetection } from './pose/usePoseDetection';
 import { useGameStore } from './state/gameStore';
+import type { DepthStatus } from './gestures/depthGuard';
 import { ThresholdZones } from './ui/ThresholdZones';
 import { HipMarker } from './ui/HipMarker';
 
@@ -15,7 +17,9 @@ function App() {
   usePoseDetection(videoRef);
   const phase = useGameStore((s) => s.phase);
   const gesture = useGameStore((s) => s.gesture);
+  const depthStatus = useGameStore((s) => s.depthStatus);
   const hasPose = useGameStore((s) => s.poseLandmarks !== null);
+  const isPlaying = phase === 'playing';
 
   // Match the stage to the camera's real aspect ratio: it stops the feed from being
   // stretched, and it makes normalized landmark coords line up 1:1 with the overlay.
@@ -60,19 +64,36 @@ function App() {
             width: `min(100%, calc((100dvh - ${CHROME_HEIGHT}) * ${aspectRatio}))`,
           }}
         >
-          <video
-            ref={videoRef}
-            className="h-full w-full -scale-x-100 object-cover"
-            muted
-            playsInline
-          />
+          {/* While playing the stage belongs to the game; the feed shrinks to a corner
+              panel that keeps the tracking overlays readable. */}
+          {isPlaying && (
+            <div className="absolute inset-0">
+              <GameCanvas />
+            </div>
+          )}
 
-          {phase !== 'calibrating' && <ThresholdZones />}
-          <HipMarker />
+          <div
+            className={
+              isPlaying
+                ? 'absolute right-3 top-3 z-10 w-[28%] overflow-hidden rounded-xl border border-white/15 bg-black shadow-lg shadow-black/60'
+                : 'absolute inset-0'
+            }
+            style={isPlaying ? { aspectRatio: `${aspectRatio}` } : undefined}
+          >
+            <video
+              ref={videoRef}
+              className="h-full w-full -scale-x-100 object-cover"
+              muted
+              playsInline
+            />
 
-          {phase === 'calibrating' && <CalibrationScreen />}
+            {phase !== 'calibrating' && <ThresholdZones />}
+            <HipMarker />
 
-          {phase === 'playing' && (
+            {phase === 'calibrating' && <CalibrationScreen />}
+          </div>
+
+          {isPlaying && (
             <div className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full border border-white/10 bg-black/50 px-4 py-1.5 backdrop-blur">
               <span className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-100">
                 {gesture.lane}
@@ -85,6 +106,7 @@ function App() {
       <footer className="flex w-full max-w-6xl shrink-0 items-center justify-center gap-3 px-1">
         <StatusPill label="Jump" active={gesture.jump} />
         <StatusPill label="Duck" active={gesture.duck} />
+        <DepthPill status={depthStatus} />
         <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5">
           <span className="text-sm font-semibold uppercase tracking-[0.15em] text-zinc-500">
             Hip
@@ -121,6 +143,51 @@ function StatusPill({ label, active }: { label: string; active: boolean }) {
         }`}
       >
         {label}
+      </span>
+    </div>
+  );
+}
+
+const DEPTH_LABELS: Record<DepthStatus, string> = {
+  unknown: 'Depth —',
+  valid: 'Depth OK',
+  tooFar: 'Step closer',
+  tooClose: 'Step back',
+};
+
+/**
+ * Out-of-range depth suppresses gestures, so it gets a pill that reads as a warning
+ * rather than the plain on/off styling the gesture pills use.
+ */
+function DepthPill({ status }: { status: DepthStatus }) {
+  const isWarning = status === 'tooFar' || status === 'tooClose';
+  const isValid = status === 'valid';
+
+  return (
+    <div
+      className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 transition-colors duration-150 ${
+        isValid
+          ? 'border-emerald-400/60 bg-emerald-400/15'
+          : isWarning
+            ? 'border-amber-400/60 bg-amber-400/15'
+            : 'border-white/10 bg-zinc-900'
+      }`}
+    >
+      <div
+        className={`h-2.5 w-2.5 rounded-full transition-colors duration-150 ${
+          isValid
+            ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+            : isWarning
+              ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]'
+              : 'bg-zinc-700'
+        }`}
+      />
+      <span
+        className={`text-sm font-semibold uppercase tracking-[0.15em] transition-colors duration-150 ${
+          isValid ? 'text-emerald-200' : isWarning ? 'text-amber-200' : 'text-zinc-400'
+        }`}
+      >
+        {DEPTH_LABELS[status]}
       </span>
     </div>
   );

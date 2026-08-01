@@ -2,9 +2,12 @@ import { useEffect, useRef } from 'react';
 import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
 import { useGameStore } from '../state/gameStore';
 import { classifyGesture } from '../gestures/gestureClassifier';
+import { classifyDepth, shoulderSpan } from '../gestures/depthGuard';
+import type { DepthStatus } from '../gestures/depthGuard';
 
 export function usePoseDetection(videoRef: React.RefObject<HTMLVideoElement | null>) {
   const landmarkerRef = useRef<PoseLandmarker | null>(null);
+  const shoulderSpanRef = useRef<number | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -56,9 +59,33 @@ export function usePoseDetection(videoRef: React.RefObject<HTMLVideoElement | nu
           const result = landmarker.detectForVideo(video, performance.now());
           if (result.landmarks[0]) {
             const landmarks = result.landmarks[0];
-            const { setGesture, setPoseLandmarks } = useGameStore.getState();
-            setPoseLandmarks(landmarks);
-            setGesture(classifyGesture(landmarks));
+            const state = useGameStore.getState();
+            state.setPoseLandmarks(landmarks);
+
+            const baseline = state.calibration?.neutralShoulderSpan;
+            const currentSpan = shoulderSpan(landmarks);
+            let depthStatus: DepthStatus = 'unknown';
+
+            if (baseline && currentSpan) {
+              shoulderSpanRef.current = shoulderSpanRef.current === null
+                ? currentSpan
+                : shoulderSpanRef.current * 0.8 + currentSpan * 0.2;
+              depthStatus = classifyDepth(
+                shoulderSpanRef.current,
+                baseline,
+                state.depthStatus,
+              );
+            } else {
+              shoulderSpanRef.current = null;
+            }
+
+            state.setDepthStatus(depthStatus);
+            const gesture = classifyGesture(landmarks, state.calibration ?? undefined);
+            state.setGesture(
+              depthStatus === 'valid' || !baseline
+                ? gesture
+                : { ...gesture, lane: state.gesture.lane, jump: false, duck: false },
+            );
           }
         } catch (error) {
           console.error('Pose detection failed:', error);
