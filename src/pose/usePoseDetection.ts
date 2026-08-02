@@ -8,6 +8,7 @@ import type { DepthStatus } from '../gestures/depthGuard';
 export function usePoseDetection(videoRef: React.RefObject<HTMLVideoElement | null>) {
   const landmarkerRef = useRef<PoseLandmarker | null>(null);
   const shoulderSpanRef = useRef<number | null>(null);
+  const frameCountRef = useRef(0);
 
   useEffect(() => {
     let isCancelled = false;
@@ -54,7 +55,12 @@ export function usePoseDetection(videoRef: React.RefObject<HTMLVideoElement | nu
       const video = videoRef.current;
       const landmarker = landmarkerRef.current;
 
-      if (video && landmarker && isVideoReady(video)) {
+      // Inference every other frame (~30Hz): body-scale gestures don't need
+      // more, and it halves the main-thread contention with the render loop.
+      frameCountRef.current++;
+      const shouldDetect = frameCountRef.current % 2 === 0;
+
+      if (shouldDetect && video && landmarker && isVideoReady(video)) {
         try {
           const result = landmarker.detectForVideo(video, performance.now());
           if (result.landmarks[0]) {

@@ -27,7 +27,7 @@ const pct = (value: number) => `${value * 100}%`;
 export function CalibrationScreen({ config = DEFAULT_CALIBRATION_CONFIG }: CalibrationScreenProps) {
   const landmarks = useGameStore(state => state.poseLandmarks);
   const setCalibration = useGameStore(state => state.setCalibration);
-  const setPhase = useGameStore(state => state.setPhase);
+  const startRun = useGameStore(state => state.startRun);
   const holdStartedAtRef = useRef<number | null>(null);
   const [holdTimer, setHoldTimer] = useState<{ startedAt: number | null; now: number }>(() => ({
     startedAt: null,
@@ -75,7 +75,7 @@ export function CalibrationScreen({ config = DEFAULT_CALIBRATION_CONFIG }: Calib
           });
         }
 
-        setPhase('playing');
+        startRun();
         return;
       }
 
@@ -84,7 +84,7 @@ export function CalibrationScreen({ config = DEFAULT_CALIBRATION_CONFIG }: Calib
 
     rafId = requestAnimationFrame(updateTimer);
     return () => cancelAnimationFrame(rafId);
-  }, [config.requiredHoldMs, evaluation.isInside, setCalibration, setPhase]);
+  }, [config.requiredHoldMs, evaluation.isInside, setCalibration, startRun]);
 
   const heldMs = evaluation.isInside && holdTimer.startedAt
     ? holdTimer.now - holdTimer.startedAt
